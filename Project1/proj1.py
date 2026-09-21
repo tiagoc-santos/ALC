@@ -30,18 +30,26 @@ def solve(instance):
     vpool = IDPool()
     
     # allowed flights
-    x = {}
+    flight = {}
+
+    #locations served
+    served = {}
     
     for i in range(n + 1):
+        if i > 0:
+            # location i is served if it is visited
+            served[i] = vpool.id(("served", i))
         for j in range(n + 1):
             # cannot fly to itself and cannot be a forbidden flight
-            if i != j and dist_matrix[i][j] > 0:
-                x[(i, j)] = vpool.id(f"x_{i}_{j}")
+            if i != j and dist_matrix[i][j] >= 0:
+                flight[(i, j)] = vpool.id(f"flight_{i}_{j}") #vpool.id(("flight", i, j))
+    print(flight)
+    print(served)
     return
 
 def main():
     instance = read_instance()
-    
+    solve(instance) 
     
 if __name__ == "__main__":
     main()
