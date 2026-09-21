@@ -1,6 +1,7 @@
 import sys
 from pysat.formula import IDPool, CNF
 from pysat.card import CardEnc, EncType
+from pysat.pb import PBEnc
 
 def read_instance():
     instance = {"n": 0, "B": 0, "dist": [], "w": [0], "a": [0], "b": [0], "precedences": []}
@@ -28,7 +29,7 @@ def read_instance():
 def at_most_one(formula, literals, vpool):
     if len(literals) <= 1:
         return
-    encoding = CardEnc.atmost(lits=literals, bound=1, vpool=vpool, encoding=EncType.seqcounter,)
+    encoding = CardEnc.atmost(lits=literals, bound=1, vpool=vpool, encoding=EncType.seqcounter)
     formula.extend(encoding.clauses)
 
 def solve(instance):
@@ -70,6 +71,23 @@ def solve(instance):
         # if c is served -> needs outgoing and incoming flights
         formula.append([-served[c], *incoming])
         formula.append([-served[c], *outgoing])
+
+    flight_lits = []
+    flight_weights = []
+
+    for (i, j), edge in flight.items():
+        energy = dist_matrix[i][j]
+
+        # count only positive weight flights
+        if energy > 0:
+            flight_lits.append(edge)
+            flight_weights.append(energy)
+
+    if flight_lits:
+        battery = PBEnc.leq(lits=flight_lits, weights=flight_weights, 
+                            bound=instance["B"], vpool=vpool)
+
+        formula.extend(battery.clauses)
 
     print(flight)
     print(served)
