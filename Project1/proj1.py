@@ -132,31 +132,33 @@ def solve(instance):
         # a served destination must have a valid position
         formula.append([-served[c], *positions])
 
-    # precedence constraints
-    # If both 'before' and 'after' are served,
-    # then position(before) < position(after)
+    # Precedence constraints
+    for before, after in set(instance["precedences"]):
+        
+        # a destination cannot strictly precede itself
+        if before == after:
+            formula.append([-served[before]])
+            continue
 
-    for before, after in instance["precedences"]:
+        first_before = instance["a"][before]
+        last_before = instance["b"][before]
 
-        before_positions = range(
-            max(1, instance["a"][before]),
-            min(n, instance["b"][before]) + 1
-        )
+        first_after = instance["a"][after]
+        last_after = instance["b"][after]
 
-        after_positions = range(
-            max(1, instance["a"][after]),
-            min(n, instance["b"][after]) + 1
-        )
+        # every possible position already respects the precedence
+        if last_before < first_after:
+            continue
 
-        for p in before_positions:
-            for q in after_positions:
+        # no possible positions can satisfy before < after
+        if first_before >= last_after:
+            formula.append([-served[before], -served[after]])
+            continue
 
-                # before cannot be at p if after is at q <= p
-                if q <= p:
-                    formula.append([
-                        -visit[(before, p)],
-                        -visit[(after, q)]
-                    ])
+        # forbid reversed positions.
+        for p in range(first_before, last_before + 1):
+            for q in range(first_after, min(last_after, p - 1) + 1):
+                formula.append([-visit[(before, p)], -visit[(after, q)]])
     
     occupied = {p: vpool.id(("occupied", p)) for p in range(1, n + 1)}
 
@@ -182,6 +184,29 @@ def solve(instance):
 
     # if the route is nonempty -> flight returns to the depot
     formula.append([-occupied[1], *depot_incoming])
+    
+    # assign flights to positions
+    for (i, j), edge in flight.items():
+        # flight depot -> j: j must be first
+        if i == 0:
+            formula.append([-edge, visit[(j, 1)]])
+
+        # flight i -> depot: i must be last
+        elif j == 0:
+            for p in range(max(1, instance["a"][i]), min(n, instance["b"][i]) + 1):
+                if p < n:
+                    formula.append([-edge, -visit[(i, p)], -occupied[p + 1]])
+
+        # flight i -> j: j must immediately follow i
+        else:
+            for p in range(max(1, instance["a"][i]), min(n, instance["b"][i]) + 1):
+                next_visit = visit.get((j, p + 1))
+                
+                if next_visit is None:
+                    formula.append([-edge, visit[(i, p)]])
+                else:
+                    # if this flight is selected and i occupies p -> j occupies p+1
+                    formula.append([-edge, -visit[(i, p)], next_visit])
     
     print(flight)
     print(served)
