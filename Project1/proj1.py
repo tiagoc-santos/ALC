@@ -131,6 +131,32 @@ def solve(instance):
 
         # a served destination must have a valid position
         formula.append([-served[c], *positions])
+
+    # precedence constraints
+    # If both 'before' and 'after' are served,
+    # then position(before) < position(after)
+
+    for before, after in instance["precedences"]:
+
+        before_positions = range(
+            max(1, instance["a"][before]),
+            min(n, instance["b"][before]) + 1
+        )
+
+        after_positions = range(
+            max(1, instance["a"][after]),
+            min(n, instance["b"][after]) + 1
+        )
+
+        for p in before_positions:
+            for q in after_positions:
+
+                # before cannot be at p if after is at q <= p
+                if q <= p:
+                    formula.append([
+                        -visit[(before, p)],
+                        -visit[(after, q)]
+                    ])
     
     occupied = {p: vpool.id(("occupied", p)) for p in range(1, n + 1)}
 
