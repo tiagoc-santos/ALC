@@ -219,7 +219,7 @@ def solve(instance):
         if penalty > 0:
             formula.append([served[c]], weight=penalty)
 
-    with RC2(formula) as maxsat:
+    with RC2(formula, solver='g4') as maxsat:
         model = maxsat.compute()
 
         best_cost = maxsat.cost
