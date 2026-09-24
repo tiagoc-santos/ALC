@@ -1,7 +1,7 @@
 import sys
 from pysat.formula import IDPool, WCNF
 from pysat.examples.rc2 import RC2
-from pysat.card import CardEnc, EncType
+from pysat.card import CardEnc, EncType, ITotalizer
 from pysat.pb import PBEnc
 
 def read_instance():
@@ -34,14 +34,8 @@ def at_most_one(formula, literals, vpool):
     formula.extend(encoding.clauses)
 
 def check_windows(instance, i, j):
-    a_i = instance["a"][i]
-    b_i = instance["b"][i]
-    
-    a_j = instance["a"][j]
-    b_j = instance["b"][j]
-    
     if i == 0:
-        return a_j == 1
+        return instance["a"][j] == 1
     
     if j == 0:
         return True
@@ -219,7 +213,20 @@ def solve(instance):
         if penalty > 0:
             formula.append([served[c]], weight=penalty)
 
-    with RC2(formula, solver='g4') as maxsat:
+    # Redundant but useful: if k destinations are served, position k is used.
+    # This lets the SAT solver propagate global counting restrictions directly,
+    # instead of rediscovering them through the destination-position matching.
+    with ITotalizer(lits=list(served.values()), ubound=n,
+                    top_id=vpool.top) as totalizer:
+        formula.extend(totalizer.cnf.clauses)
+        for p in range(1, n + 1):
+            threshold = totalizer.rhs[p - 1]
+            formula.append([-threshold, occupied[p]])
+            formula.append([-occupied[p], threshold])
+        if totalizer.top_id > vpool.top:
+            vpool.occupy(vpool.top + 1, totalizer.top_id)
+    
+    with RC2(formula, solver='cadical195') as maxsat:
         model = maxsat.compute()
 
         best_cost = maxsat.cost
