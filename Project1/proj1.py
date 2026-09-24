@@ -1,5 +1,6 @@
 import sys
-from pysat.formula import IDPool, CNF
+from pysat.formula import IDPool, WCNF
+from pysat.examples.rc2 import RC2
 from pysat.card import CardEnc, EncType
 from pysat.pb import PBEnc
 
@@ -54,7 +55,7 @@ def solve(instance):
     n = instance["n"]
     dist_matrix = instance["dist"]
     vpool = IDPool()
-    formula = CNF()
+    formula = WCNF()
     
     # allowed flights
     flight = {}
@@ -132,7 +133,6 @@ def solve(instance):
         # a served destination must have a valid position
         formula.append([-served[c], *positions])
 
-    # Precedence constraints
     for before, after in set(instance["precedences"]):
         
         # a destination cannot strictly precede itself
@@ -203,7 +203,7 @@ def solve(instance):
                 next_visit = visit.get((j, p + 1))
                 
                 if next_visit is None:
-                    formula.append([-edge, visit[(i, p)]])
+                    formula.append([-edge, -visit[(i, p)]])
                 else:
                     # if this flight is selected and i occupies p -> j occupies p+1
                     formula.append([-edge, -visit[(i, p)], next_visit])
