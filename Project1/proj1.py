@@ -70,7 +70,7 @@ def solve(instance):
         for j in range(n + 1):
             # cannot fly to itself, cannot be a forbidden flight and cannot be an impossible flight
             if i != j and 0 <= dist_matrix[i][j] <= instance["B"] and check_windows(instance, i, j):
-                flight[(i, j)] = vpool.id(f"flight_{i}_{j}") # vpool.id(("flight", i, j))
+                flight[(i, j)] = vpool.id(f"flight_{i}_{j}")
 
     for c in range(0, n + 1):
         incoming = [flight[(i, c)] for i in range(n + 1) if (i, c) in flight]
@@ -207,15 +207,39 @@ def solve(instance):
                 else:
                     # if this flight is selected and i occupies p -> j occupies p+1
                     formula.append([-edge, -visit[(i, p)], next_visit])
-    
-    print(flight)
-    print(served)
-    print(formula.clauses)
-    return
+
+    # selecting a flight costs energy
+    for edge, energy in zip(flight_lits, flight_weights):
+        formula.append([-edge], weight=energy)
+
+    # skipping a destination costs its penalty
+    for c in range(1, n + 1):
+        penalty = instance["w"][c]
+
+        if penalty > 0:
+            formula.append([served[c]], weight=penalty)
+
+    with RC2(formula) as maxsat:
+        model = maxsat.compute()
+
+        best_cost = maxsat.cost
+        true_vars = {literal for literal in model if literal > 0}
+
+        ordered_visits = sorted((p, c) for (c, p), variable in visit.items() 
+                                if variable in true_vars)
+
+        route = [c for p, c in ordered_visits]
+
+    return best_cost, route
+
+def decode_out(best_cost, route):
+    print(best_cost, len(route))
+    print(*route)
 
 def main():
     instance = read_instance()
-    solve(instance) 
+    best_cost, route = solve(instance)
+    decode_out(best_cost, route)
     
 if __name__ == "__main__":
     main()
