@@ -224,7 +224,7 @@ def solve(instance):
         if totalizer.top_id > vpool.top:
             vpool.occupy(vpool.top + 1, totalizer.top_id)
     
-    with RC2(formula, solver='cadical195') as maxsat:
+    with RC2(formula, solver='cadical195', exhaust=True) as maxsat:
         model = maxsat.compute()
 
         best_cost = maxsat.cost
