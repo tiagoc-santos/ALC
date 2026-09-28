@@ -213,9 +213,7 @@ def solve(instance):
         if penalty > 0:
             formula.append([served[c]], weight=penalty)
 
-    # Redundant but useful: if k destinations are served, position k is used.
-    # This lets the SAT solver propagate global counting restrictions directly,
-    # instead of rediscovering them through the destination-position matching.
+    # if k destinations are served, position k is used.
     with ITotalizer(lits=list(served.values()), ubound=n,
                     top_id=vpool.top) as totalizer:
         formula.extend(totalizer.cnf.clauses)
