@@ -50,7 +50,11 @@ def check_windows(instance, i, j):
     
     return first_position <= last_position
 
-def solve(instance):
+def smt_clause(clause, variables):
+        return Or([variables[lit] if lit > 0 else Not(variables[-lit])
+                   for lit in clause])
+
+def solve_bool(instance):
     n = instance["n"]
     dist_matrix = instance["dist"]
     vpool = IDPool()
@@ -229,37 +233,80 @@ def solve(instance):
         if totalizer.top_id > vpool.top:
             vpool.occupy(vpool.top + 1, totalizer.top_id)
     
-    # Keep the existing Boolean encoding, but solve it with an SMT optimizer.
+    arrival = {}
+    limits = {}
+
+    for c in range(1, n + 1):
+        limits[c] = min(instance["B"], instance["deadlines"].get(c, instance["B"]))
+
+        distances = []
+        for d in range(limits[c] + 1):
+            arrival[(c, d)] = vpool.id(("arrival", c, d))
+            distances.append(arrival[(c, d)])
+
+        # destination can have at most one arrival distance.
+        at_most_one(formula, distances, vpool)
+
+        # arrival_distance -> served.
+        for variable in distances:
+            formula.append([-variable, served[c]])
+
+        # served -> arrival distance.
+        formula.append([-served[c], *distances])
+
+    # assign arrivals to flights
+    for (i, j), edge in flight.items():
+        # skip return flight
+        if j == 0:
+            continue
+
+        energy = dist_matrix[i][j]
+
+        # depot -> j: arrival distance must equal flight cost
+        if i == 0:
+            
+            first_arrival = arrival.get((j, energy))
+
+            # deadline < flight cost
+            if first_arrival is None:
+                formula.append([-edge])
+            else:
+                formula.append([-edge, first_arrival])
+
+        else:
+            # i -> j: arrival at j must equal arrival at i + flight cost.
+            for d in range(limits[i] + 1):
+                current_arrival = arrival[(i, d)]
+                next_arrival = arrival.get((j, d + energy))
+                
+                # i + flight cost > deadline j
+                if next_arrival is None:
+                    formula.append([-edge, -current_arrival])
+                else:
+                    formula.append([-edge, -current_arrival, next_arrival])
+    
+    # use SMT
     optimizer = Optimize()
     optimizer.set(maxsat_engine="wmax")
+    
+    # creates Z3 boolean variable for every variable ID
     variables = {i: Bool(f"v_{i}") for i in range(1, formula.nv + 1)}
 
-    def smt_clause(clause):
-        return Or([variables[lit] if lit > 0 else Not(variables[-lit])
-                   for lit in clause])
-
     for clause in formula.hard:
-        optimizer.add(smt_clause(clause))
+        optimizer.add(smt_clause(clause, variables))
+        
     for clause, weight in zip(formula.soft, formula.wght):
-        optimizer.add_soft(smt_clause(clause), weight=weight)
-
-    # Arrival distance counts the route prefix, excluding the return to depot.
-    arrival = {c: Int(f"arrival_{c}") for c in range(n + 1)}
-    optimizer.add(arrival[0] == 0)
-    for c in range(1, n + 1):
-        optimizer.add(arrival[c] >= 0, arrival[c] <= instance["B"])
-    for (i, j), edge in flight.items():
-        if j != 0:
-            optimizer.add(Implies(variables[edge],
-                                  arrival[j] == arrival[i] + dist_matrix[i][j]))
-    for c, deadline in instance["deadlines"].items():
-        optimizer.add(Implies(variables[served[c]], arrival[c] <= deadline))
+        optimizer.add_soft(smt_clause(clause, variables), weight=weight)
 
     if optimizer.check() != sat:
         raise RuntimeError("SMT optimizer could not find an optimal route")
+    
+    
     model = optimizer.model()
-    best_cost = sum(weight for clause, weight in zip(formula.soft, formula.wght)
-                    if not is_true(model.eval(smt_clause(clause))))
+    
+    best_cost = sum(weight for clause, weight in zip(formula.soft, formula.wght) 
+                    if not is_true(model.eval(smt_clause(clause, variables))))
+    
     true_vars = {i for i, variable in variables.items() if is_true(model.eval(variable))}
 
     ordered_visits = sorted((p, c) for (c, p), variable in visit.items()
@@ -274,7 +321,7 @@ def decode_out(best_cost, route):
 
 def main():
     instance = read_instance()
-    best_cost, route = solve(instance)
+    best_cost, route = solve_bool(instance)
     decode_out(best_cost, route)
     
 if __name__ == "__main__":
