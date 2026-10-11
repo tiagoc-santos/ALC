@@ -3,7 +3,7 @@
 set -u
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-SOLVER=${SOLVER:-"$SCRIPT_DIR/proj2_smt.py"}
+SOLVER=${SOLVER:-"$SCRIPT_DIR/proj2.py"}
 TEST_DIR=${TEST_DIR:-"$SCRIPT_DIR/public_tests"}
 
 passed=0
