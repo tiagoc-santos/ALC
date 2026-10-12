@@ -5,7 +5,7 @@ set -u
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 SOLVER=${SOLVER:-"$SCRIPT_DIR/proj2.py"}
 TEST_DIR=${TEST_DIR:-"$SCRIPT_DIR/public_tests"}
-CSV_OUT=${CSV_OUT:-"$SCRIPT_DIR/time_bool.csv"}
+CSV_OUT=${CSV_OUT:-"$SCRIPT_DIR/time_int.csv"}
 TEST_TIMEOUT=${TEST_TIMEOUT:-600}  # Seconds: 10 minutes per solver execution.
 
 if ! command -v timeout > /dev/null 2>&1; then

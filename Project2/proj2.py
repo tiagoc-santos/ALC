@@ -529,7 +529,7 @@ def decode_out(best_cost, route):
 
 def main():
     instance = read_instance()
-    best_cost, route = solve_bool(instance)
+    best_cost, route = solve_int(instance)
     decode_out(best_cost, route)
 
 if __name__ == "__main__":
