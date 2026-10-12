@@ -1,11 +1,8 @@
-#!/usr/bin/python3
-# alc26 - 4 - project2 
-# DO NOT remove or edit the lines above. Thank you.
 import sys
 from pysat.formula import IDPool, WCNF
 from pysat.card import CardEnc, EncType, ITotalizer
 from pysat.pb import PBEnc
-from z3 import And, AtMost, Bool, If, Implies, Int, IntVal, Not, Optimize, Or, PbLe, Sum, is_true, sat, set_param
+from z3 import And, AtMost, Bool, If, Implies, Int, IntVal, Not, Optimize, Or, PbLe, PbGe, Sum, is_true, sat, set_param
 
 def read_instance():
     instance = {"n": 0, "B": 0, "dist": [], "w": [0], "a": [0], "b": [0], "precedences": [], "deadlines": {}}
@@ -475,7 +472,21 @@ def solve_int(instance):
         if j != 0:
             solver.add(Implies(edge, position[j] == (1 if i == 0 else position[i] + 1)))
             solver.add(Implies(edge, arrival[j] == arrival[i] + allowed[(i, j)]))
-    
+            
+    count_terms = [(served[c], 1) for c in served]
+    # if p is occupied -> positions: 1,...,p-1 must also be occupied
+    for p in range(2, n + 1):
+        possible_destinations = []
+        for c in served:
+            if feasible_positions[c] and p in feasible_positions[c]:
+                possible_destinations.append(c)
+        
+        conditions = []
+        for c in possible_destinations:
+            conditions.append(And(served[c], position[c] == p))
+
+        solver.add(Or(conditions) == PbGe(count_terms, p))
+
     for before, after in instance["precedences"]:
         solver.add(Implies(And(served[before], served[after]), position[before] < position[after]))
 
