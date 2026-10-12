@@ -451,13 +451,9 @@ def solve_int(instance):
     position = {c: Int(f"position_{c}") for c in served}
     arrival = {c: Int(f"arrival_{c}") for c in range(n + 1)}
     solver.add(arrival[0] == 0)
-
+    
+    # constraints to respect delivery windows and deadlines
     for c in served:
-        # constraint to respect delivery windows and deadlines
-        solver.add(Implies(served[c], And(position[c] >= max(1, instance["a"][c]),
-            position[c] <= min(n, instance["b"][c]), arrival[c] >= 0,
-            arrival[c] <= min(B, instance["deadlines"].get(c, B)))))
-
         possible = feasible_positions[c]
         # c does not have any feasable postions
         if not possible:
